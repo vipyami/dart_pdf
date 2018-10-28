@@ -1,6 +1,7 @@
 # 1.1.0
 * Rename classes to satisfy Dart conventions
 * Remove useless new and const keywords
+* Implement asynchronous printing driven by the OS
 
 # 1.0.6
 * Add screenshot example

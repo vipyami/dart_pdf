@@ -19,9 +19,10 @@ class MyAppState extends State<MyApp> {
   final shareWidget = GlobalKey();
   final previewContainer = GlobalKey();
 
-  PdfDocument _generateDocument() {
-    final pdf = PdfDocument(deflate: zlib.encode);
-    final page = PdfPage(pdf, pageFormat: PdfPageFormat.a4);
+  PdfDocument _generateDocument(PdfPageFormat format) {
+    print("Generate Pdf document $format");
+    final pdf = new PdfDocument(deflate: zlib.encode);
+    final page = new PdfPage(pdf, pageFormat: format);
     final g = page.getGraphics();
     final font = PdfFont(pdf);
     final top = page.pageFormat.height;
@@ -40,13 +41,13 @@ class MyAppState extends State<MyApp> {
 
   void _printPdf() {
     print("Print ...");
-    final pdf = _generateDocument();
-    Printing.printPdf(document: pdf);
+    Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) => _generateDocument(format).save());
   }
 
   void _sharePdf() {
     print("Share ...");
-    final pdf = _generateDocument();
+    final pdf = _generateDocument(PdfPageFormat.a4);
 
     // Calculate the widget center for iPad sharing popup position
     final RenderBox referenceBox =
@@ -62,9 +63,6 @@ class MyAppState extends State<MyApp> {
 
   Future<void> _printScreen() async {
     const margin = 10.0 * PdfPageFormat.mm;
-    final pdf = PdfDocument(deflate: zlib.encode);
-    final page = PdfPage(pdf, pageFormat: PdfPageFormat.a4);
-    final g = page.getGraphics();
 
     RenderRepaintBoundary boundary =
         previewContainer.currentContext.findRenderObject();
@@ -72,24 +70,32 @@ class MyAppState extends State<MyApp> {
     final bytes = await im.toByteData(format: ImageByteFormat.rawRgba);
     print("Print Screen ${im.width}x${im.height} ...");
 
-    // Center the image
-    final w = page.pageFormat.width - margin * 2.0;
-    final h = page.pageFormat.height - margin * 2.0;
-    double iw, ih;
-    if (im.width.toDouble() / im.height.toDouble() < 1.0) {
-      ih = h;
-      iw = im.width.toDouble() * ih / im.height.toDouble();
-    } else {
-      iw = w;
-      ih = im.height.toDouble() * iw / im.width.toDouble();
-    }
+    Printing.layoutPdf(onLayout: (PdfPageFormat format) {
+      final pdf = new PdfDocument(deflate: zlib.encode);
+      final page = new PdfPage(pdf, pageFormat: format);
+      final g = page.getGraphics();
 
-    PdfImage image = PdfImage(pdf,
-        image: bytes.buffer.asUint8List(), width: im.width, height: im.height);
-    g.drawImage(image, margin + (w - iw) / 2.0,
-        page.pageFormat.height - margin - ih - (h - ih) / 2.0, iw, ih);
+      // Center the image
+      final w = page.pageFormat.width - margin * 2.0;
+      final h = page.pageFormat.height - margin * 2.0;
+      double iw, ih;
+      if (im.width.toDouble() / im.height.toDouble() < 1.0) {
+        ih = h;
+        iw = im.width.toDouble() * ih / im.height.toDouble();
+      } else {
+        iw = w;
+        ih = im.height.toDouble() * iw / im.width.toDouble();
+      }
 
-    Printing.printPdf(document: pdf);
+      PdfImage image = PdfImage(pdf,
+          image: bytes.buffer.asUint8List(),
+          width: im.width,
+          height: im.height);
+      g.drawImage(image, margin + (w - iw) / 2.0,
+          page.pageFormat.height - margin - ih - (h - ih) / 2.0, iw, ih);
+
+      return pdf.save();
+    });
   }
 
   @override
